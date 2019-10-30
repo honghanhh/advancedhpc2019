@@ -11,6 +11,5 @@ Students are expected to:
 
 Student Info
 =======================
-
 * Name: TRAN Thi Hong Hanh
 
