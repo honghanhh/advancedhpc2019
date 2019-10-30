@@ -12,6 +12,5 @@ Students are expected to:
 Student Info
 =======================
 
-* Name: MyName
-* ID: *YourIdHere*
+* Name: TRAN Thi Hong Hanh
 
