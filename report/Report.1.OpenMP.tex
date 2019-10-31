@@ -1,0 +1,57 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{tikz} 
+ \usetikzlibrary{arrows,automata,positioning,petri}
+ 
+\title{Report on Labwork 1}
+\author{TRAN Thi Hong Hanh}
+
+\begin{document}
+
+\maketitle
+\begin{enumerate}
+    \item \textbf{How you implement the conversion?}
+    \begin{itemize}
+        \item I added \textbf{\textit{\#pragma omp parallel}} before the loop to convert from sequential CPU to parallel using OpenMP:
+    \begin{verbatim}
+        #pragma omp parallel 
+        for (int j = 0; j < 100; j++) {     
+            for (int i = 0; i < pixelCount; i++) {
+                outputImage[i * 3] = (char) (
+                            ((int) inputImage->buffer[i * 3] +
+                            (int) inputImage->buffer[i * 3 + 1] +
+                            (int) inputImage->buffer[i * 3 + 2]) / 3);
+                outputImage[i * 3 + 1] = outputImage[i * 3];
+                outputImage[i * 3 + 2] = outputImage[i * 3];
+            }
+        }
+    \end{verbatim}
+    \end{itemize}
+    \item \textbf{What’s the speedup?}
+    \begin{itemize}
+        \item Using OpenMP parallel computed one third times compared to CPU.
+        \item [] Labwork 1 CPU ellapsed 374.1ms
+        \item [] Labwork 1 using OpenMP ellapsed 108.9ms
+    \end{itemize}
+    \item \textbf{Try experimenting with different OpenMP parameters?}
+    \begin{itemize}
+        \item atomic:
+        \item [] Labwork 1 CPU ellapsed 444.9ms
+        \item [] Labwork 1 using OpenMP  ellapsed 107.1ms
+        \item critical
+        \item [] Labwork 1 CPU ellapsed 372.0ms
+        \item [] Labwork 1 using OpenMP 126.2ms
+        \item master
+        \item [] Labwork 1 CPU ellapsed 285.6ms
+        \item [] Labwork 1 using OpenMP ellapsed 10.7ms
+        \item single
+        \item []  Labwork 1 CPU ellapsed 429.3ms
+        \item [] Labwork 1 using OpenMP ellapsed 109.4ms
+
+
+
+    \end{itemize}
+\end{enumerate}
+\end{document}
+
