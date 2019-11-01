@@ -2,11 +2,12 @@
 #include <include/labwork.h>
 #include <cuda_runtime_api.h>
 #include <omp.h>
+#include <time.h>
 
 #define ACTIVE_THREADS 4
 
 int main(int argc, char **argv) {
-    printf("USTH ICT Master 2018, Advanced Programming for HPC.\n");
+    printf("USTH ICT Master 2019, Advanced Programming for HPC.\n");
     if (argc < 2) {
         printf("Usage: labwork <lwNum> <inputImage>\n");
         printf("   lwNum        labwork number\n");
@@ -173,18 +174,33 @@ void Labwork::labwork2_GPU() {
 
 }
 
+__global__ void grayscale(uchar3 *input, uchar3 *output) {
+    // this will execute in a device core
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    output[tid].x = (input[tid].x + input[tid].y +input[tid].z) / 3;
+    output[tid].z = output[tid].y = output[tid].x;
+}
+
 void Labwork::labwork3_GPU() {
     // Calculate number of pixels
-
+    int pixelCount = inputImage->width * inputImage->height;
     // Allocate CUDA memory    
-
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    cudaMalloc(&devInput, pixelCount *sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount *sizeof(uchar3));
     // Copy CUDA Memory from CPU to GPU
-
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3),cudaMemcpyHostToDevice);
     // Processing
-
+    int blockSize = 512;
+    int numBlock = pixelCount / blockSize;  
+    grayscale<<<numBlock, blockSize>>>(devInput, devOutput);
     // Copy CUDA Memory from GPU to CPU
-
+    outputImage = static_cast<char *>(malloc(pixelCount * sizeof(uchar3)));  
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3),cudaMemcpyDeviceToHost);  
     // Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
 }
 
 void Labwork::labwork4_GPU() {
