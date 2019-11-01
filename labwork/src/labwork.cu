@@ -110,7 +110,7 @@ void Labwork::labwork1_OpenMP() {
     int pixelCount = inputImage->width * inputImage->height;
     outputImage = static_cast<char *>(malloc(pixelCount * 3));
     // do something here
-    #pragma omp single
+    #pragma omp master
     for (int j = 0; j < 100; j++) {     // let's do it 100 times, otherwise it's too fast!
         for (int i = 0; i < pixelCount; i++) {
             outputImage[i * 3] = (char) (((int) inputImage->buffer[i * 3] + (int) inputImage->buffer[i * 3 + 1] +
@@ -157,6 +157,18 @@ void Labwork::labwork2_GPU() {
         cudaDeviceProp prop;
         cudaGetDeviceProperties(&prop, i);
         // something more here
+	// Device name
+	printf("GPU #%d\n", i);
+        printf("GPU name: %s\n", prop.name);
+	//Core info
+        printf("Clock rate: %d\n", prop.clockRate);
+        printf("Number of cores: %d\n", getSPcores(prop));
+        printf("Number of multiprocessors: %d\n", prop.multiProcessorCount);
+        printf("Warp Size: %d\n", prop.warpSize);
+	//Memory info
+        printf("Memory Clock Rate: %d\n", prop.memoryClockRate);
+        printf("Memory Bus Width (bits): %d\nDevices", prop.memoryBusWidth);
+        printf("Peak Memory Bandwidth (GB/s): %f\n\n", 2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6);
     }
 
 }
