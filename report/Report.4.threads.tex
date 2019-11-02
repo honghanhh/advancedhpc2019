@@ -1,0 +1,56 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{tikz} 
+ \usetikzlibrary{arrows,automata,positioning,petri}
+ 
+\title{Report on Labwork 4}
+\author{TRAN Thi Hong Hanh}
+
+\begin{document}
+
+\maketitle
+\begin{enumerate}
+    \item \textbf{Explain how you improve the labwork?}
+    \begin{itemize}
+        \item Redefine the grayscaling kernel
+        \begin{verbatim}
+        __global__ void grayscale2D(uchar3 *input, uchar3 *output, 
+                                            int width, int height) {
+            int globalIdX = threadIdx.x + blockIdx.x * blockDim.x;
+            if (globalIdX >= width) 
+                return;
+            int globalIdY = threadIdx.y + blockIdx.y * blockDim.y;
+            if (globalIdY >= height) 
+                return;
+            int tid = globalIdY * width + globalIdX;
+        
+            output[tid].x = (input[tid].x + input[tid].y +input[tid].z) / 3;
+            output[tid].z = output[tid].y = output[tid].x;
+        }
+        \end{verbatim}
+        \item Redefine blockSize and gridSize
+    \end{itemize}
+    \begin{verbatim}
+        dim3 blockSize = dim3(32, 32);
+        dim3 gridSize = dim3((inputImage->width + blockSize.x -1) / blockSize.x,
+                             (inputImage->height + blockSize.y -1) / blockSize.y);
+        grayscale2D<<<gridSize, blockSize>>>(devInput, devOutput,
+                                            inputImage->width, inputImage -> height);
+    \end{verbatim}
+    
+    \item \textbf{Try experimenting with different 2D block size values?}\\
+    \begin{table}[]
+    \centering
+    \begin{tabular}{|l|l|l|l|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{Block size}} & 64 & 128 & 256 & \multicolumn{1}{c|}{512} \\ \hline
+    \textbf{Time elapsed (ms)} & 11.5 & 10.4 & 10.7 & 11.0\\ \hline
+    \end{tabular}
+    \end{table}
+    \newpage
+    \item \textbf{Compare speedup with previous 1D grid}: It is faster compared to previous 1D grid.
+
+\end{enumerate}
+\end{document}
+
