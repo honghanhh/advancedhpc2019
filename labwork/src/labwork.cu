@@ -55,31 +55,36 @@ int main(int argc, char **argv)
     case 4:
         timer.start();
         labwork.labwork4_GPU();
-        printf("labwork 5 ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        printf("labwork 4 ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         labwork.saveOutputImage("labwork4-gpu-out.jpg");
         break;
     case 5:
+
+        float timeCPU, timeGPUShare, timeGPUNonShare;
         timer.start();
         labwork.labwork5_CPU();
-        printf("labwork 5 CPU ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        timeCPU = timer.getElapsedTimeInMilliSec();
+
         labwork.saveOutputImage("labwork5-cpu-out.jpg");
 
         timer.start();
-        for (int i = 0; i < 100; ++i)
-        {
-            labwork.labwork5_GPU();
-        }
-        printf("labwork 5 GPU without shared memory ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        labwork.labwork5_GPU();
+        timeGPUNonShare = timer.getElapsedTimeInMilliSec();
+
         labwork.saveOutputImage("labwork5-gpu-out.jpg");
 
         timer.start();
-        for (int i = 0; i < 100; ++i)
-        {
-            labwork.labwork5_GPU_shared_memmory();
-        }
-        printf("labwork 5 GPU with shared memory ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        labwork.labwork5_GPU_shared_memmory();
+        timeGPUShare = timer.getElapsedTimeInMilliSec();
+
         labwork.saveOutputImage("labwork5-gpu-shared_mem_out.jpg");
-        break;
+
+        printf("Labwork 5 CPU ellapsed %.1fms\n", lwNum, timeCPU);
+        printf("Labwork 5 GPU with shared memory ellapsed %.1fms\n", lwNum, timeGPUShare);
+        printf("Labwork 5 GPU without shared memory ellapsed %.1fms\n", lwNum, timeGPUNonShare);
+        printf("GPU without shared memory is faster than CPU: %.2f times\n", timeCPU / timeGPUNonShare);
+        printf("GPU with shared memory is faster than CPU: %.2f times\n", timeCPU / timeGPUShare);
+        printf("GPU with shared memory is faster than GPU without shared memory: %.2f times\n", timeGPUNonShare / timeGPUShare);
     case 6:
         labwork.labwork6_GPU();
         labwork.saveOutputImage("labwork6-gpu-out.jpg");
