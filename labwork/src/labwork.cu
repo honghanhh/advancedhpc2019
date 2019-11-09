@@ -532,6 +532,7 @@ __global__ void binarization(uchar3 *input, uchar3 *output, int width, int heigh
     //Define a threshold
     unsigned char binary = (input[tid].x + input[tid].y + input[tid].z) / 3;
     binary = min(binary / thres, 1) * 255;
+
     output[tid].z = output[tid].y = output[tid].x = binary;
 }
 
@@ -567,12 +568,114 @@ void Labwork::labwork6a_GPU()
     cudaFree(devOutput);
 }
 
+__global__ void brightnessControl(uchar3 *input, uchar3 *output, int width, int height, int brightness)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+
+    int tid = tidY * width + tidX;
+
+    //Define a brightness
+    unsigned char red = min(max(input[tid].x + brightness, 0), 255);
+    unsigned char green = min(max(input[tid].y + brightness, 0), 255);
+    unsigned char blue = min(max(input[tid].z + brightness, 0), 255);
+
+    output[tid].x = red;
+    output[tid].y = green;
+    output[tid].z = blue;
+}
+
 void Labwork::labwork6b_GPU()
 {
+    int brightness = 100;
+
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+
+    dim3 blockSize = dim3(32, 32);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    // Allocate CUDA memory
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+
+    // Allocate memory for the output on the host
+    outputImage = static_cast<char *>(malloc(pixelCount * sizeof(uchar3)));
+
+    // Copy InputImage from CPU to GPU
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    brightnessControl<<<gridSize, blockSize>>>(devInput, devOutput, inputImage->width, inputImage->height, brightness);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    //Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
+}
+
+__global__ void blendImages(uchar3 *input, uchar3 *input1, uchar3 *output, int width, int height, float blendRatio)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+
+    int tid = tidY * width + tidX;
+
+    //Define a blending
+    unsigned char red = input[tid].x * blendRatio + input1[tid].x * (1 - blendRatio);
+    unsigned char green = input[tid].y * blendRatio + input1[tid].y * (1 - blendRatio);
+    unsigned char blue = input[tid].z * blendRatio + input1[tid].z * (1 - blendRatio);
+
+    output[tid].x = red;
+    output[tid].y = green;
+    output[tid].z = blue;
 }
 
 void Labwork::labwork6c_GPU()
 {
+    float blendRatio = 100;
+
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+
+    dim3 blockSize = dim3(32, 32);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    // Allocate CUDA memory
+    uchar3 *devInput;
+    uchar3 *devInput1;
+    uchar3 *devOutput;
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devInput1, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+
+    // Allocate memory for the output on the host
+    outputImage = static_cast<char *>(malloc(pixelCount * sizeof(uchar3)));
+
+    // Copy InputImage from CPU to GPU
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    blendImages<<<gridSize, blockSize>>>(devInput, devInput1, devOutput, inputImage->width, inputImage->height, blendRatio);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    //Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
 }
 
 void Labwork::labwork7_GPU()
