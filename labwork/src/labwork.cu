@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     case 1:
         labwork.labwork1_CPU();
         labwork.saveOutputImage("labwork2-cpu-out.jpg");
-        printf("labwork 1 CPU ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        printf("Labwork 1 CPU ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         timer.start();
         labwork.labwork1_OpenMP();
         labwork.saveOutputImage("labwork2-openmp-out.jpg");
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     case 4:
         timer.start();
         labwork.labwork4_GPU();
-        printf("labwork 4 ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+        printf("Labwork 4 ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         labwork.saveOutputImage("labwork4-gpu-out.jpg");
         break;
     case 5:
@@ -85,9 +85,31 @@ int main(int argc, char **argv)
         printf("GPU without shared memory is faster than CPU: %.2f times\n", timeCPU / timeGPUNonShare);
         printf("GPU with shared memory is faster than CPU: %.2f times\n", timeCPU / timeGPUShare);
         printf("GPU with shared memory is faster than GPU without shared memory: %.2f times\n", timeGPUNonShare / timeGPUShare);
+        break;
     case 6:
-        labwork.labwork6_GPU();
-        labwork.saveOutputImage("labwork6-gpu-out.jpg");
+        float timeBinarize, timeBlend, timeGrayScale;
+        timer.start();
+        labwork.labwork6a_GPU();
+        timeBinarize = timer.getElapsedTimeInMilliSec();
+
+        labwork.saveOutputImage("labwork6a-gpu-out.jpg");
+
+        timer.start();
+        labwork.labwork6b_GPU();
+        timeBlend = timer.getElapsedTimeInMilliSec();
+
+        labwork.saveOutputImage("labwork6b-gpu-out.jpg");
+
+        timer.start();
+        labwork.labwork6c_GPU();
+        timeGrayScale = timer.getElapsedTimeInMilliSec();
+
+        labwork.saveOutputImage("labwork6c-gpu-out.jpg");
+
+        printf("Labwork 6a (Binarization) ellapsed %.1fms\n", lwNum, timeBinarize);
+        printf("Labwork 6b (Blending) ellapsed %.1fms\n", lwNum, timeBlend);
+        printf("Labwork 6c (GrayScaling) ellapsed %.1fms\n", lwNum, timeGrayScale);
+
         break;
     case 7:
         labwork.labwork7_GPU();
@@ -110,7 +132,7 @@ int main(int argc, char **argv)
         labwork.saveOutputImage("labwork10-gpu-out.jpg");
         break;
     }
-    printf("labwork %d ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
+    printf("Labwork %d ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
 }
 
 void Labwork::loadInputImage(std::string inputFileName)
@@ -336,16 +358,16 @@ void Labwork::labwork5_CPU()
 }
 
 // Blur kernel for non-shared memory
-__global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int imageWidth, int imageHeight)
+__global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int width, int height)
 {
 
     int tidX = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tidX >= imageWidth)
+    if (tidX >= width)
         return;
     int tidY = threadIdx.y + blockIdx.y * blockDim.y;
-    if (tidY >= imageHeight)
+    if (tidY >= height)
         return;
-    int tid = tidX + tidY * imageWidth;
+    int tid = tidX + tidY * width;
 
     int kernel[] = {0, 0, 1, 2, 1, 0, 0,
                     0, 3, 13, 22, 13, 3, 0,
@@ -363,9 +385,9 @@ __global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int ima
         {
             int i = tidX + x;
             int j = tidY + y;
-            if (i < 0 || i >= imageWidth || j < 0 || j >= imageHeight)
+            if (i < 0 || i >= width || j < 0 || j >= height)
                 continue;
-            int tid = i + j * imageWidth;
+            int tid = i + j * width;
             unsigned char gray = (input[tid].x + input[tid].y + input[tid].z) / 3;
             int coefficient = kernel[(y + 3) * 7 + x + 3];
             sum += gray * coefficient;
@@ -409,16 +431,16 @@ void Labwork::labwork5_GPU()
 }
 
 // Blur kernel for shared memory
-__global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int *kernel, int imageWidth, int imageHeight)
+__global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int *kernel, int width, int height)
 {
 
     int tidX = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tidX >= imageWidth)
+    if (tidX >= width)
         return;
     int tidY = threadIdx.y + blockIdx.y * blockDim.y;
-    if (tidY >= imageHeight)
+    if (tidY >= height)
         return;
-    int tid = tidX + tidY * imageWidth;
+    int tid = tidX + tidY * width;
 
     __shared__ int sharedKernel[49];
     int localtid = threadIdx.x + threadIdx.y * blockDim.x;
@@ -436,9 +458,9 @@ __global__ void blurGaussianConvNonShared(uchar3 *input, uchar3 *output, int *ke
         {
             int i = tidX + x;
             int j = tidY + y;
-            if (i < 0 || i >= imageWidth || j < 0 || j >= imageHeight)
+            if (i < 0 || i >= width || j < 0 || j >= height)
                 continue;
-            int tid = i + j * imageWidth;
+            int tid = i + j * width;
             unsigned char gray = (input[tid].x + input[tid].y + input[tid].z) / 3;
             int coefficient = sharedKernel[(y + 3) * 7 + x + 3];
             sum += gray * coefficient;
@@ -489,13 +511,67 @@ void Labwork::labwork5_GPU_shared_memmory()
     // Copy CUDA Memory from GPU to CPU
     cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
 
-    // // Cleaning
+    // Cleaning
     cudaFree(devInput);
     cudaFree(devOutput);
     cudaFree(shareKernel);
 }
 
-void Labwork::labwork6_GPU()
+__global__ void binarization(uchar3 *input, uchar3 *output, int width, int height, int thres)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+
+    int tid = tidY * width + tidX;
+
+    //Define a threshold
+    unsigned char binary = (input[tid].x + input[tid].y + input[tid].z) / 3;
+    binary = min(binary / thres, 1) * 255;
+    output[tid].z = output[tid].y = output[tid].x = binary;
+}
+
+void Labwork::labwork6a_GPU()
+{
+    int thres = 128;
+
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+
+    dim3 blockSize = dim3(32, 32);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    // Allocate CUDA memory
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+
+    // Allocate memory for the output on the host
+    outputImage = static_cast<char *>(malloc(pixelCount * sizeof(uchar3)));
+
+    // Copy InputImage from CPU to GPU
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    binarization<<<gridSize, blockSize>>>(devInput, devOutput, inputImage->width, inputImage->height, thres);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    //Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
+}
+
+void Labwork::labwork6b_GPU()
+{
+}
+
+void Labwork::labwork6c_GPU()
 {
 }
 
