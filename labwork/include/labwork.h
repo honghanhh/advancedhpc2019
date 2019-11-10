@@ -9,10 +9,12 @@ class Labwork
 private:
     JpegLoader jpegLoader;
     JpegInfo *inputImage;
+    JpegInfo *inputImage1;
     char *outputImage;
 
 public:
     void loadInputImage(std::string inputFileName);
+    JpegInfo *loadImage(std::string inputFileName1);
     void saveOutputImage(std::string outputFileName);
 
     void labwork1_CPU();
@@ -28,9 +30,9 @@ public:
     void labwork5_GPU();
     void labwork5_GPU_shared_memmory();
 
-    void labwork6a_GPU();
-    void labwork6b_GPU();
-    void labwork6c_GPU();
+    void labwork6a_GPU(int thres);
+    void labwork6b_GPU(int brightness);
+    void labwork6c_GPU(float blendRatio, JpegInfo *inputImage1);
 
     void labwork7_GPU();
 

@@ -32,6 +32,9 @@ int main(int argc, char **argv)
         labwork.loadInputImage(inputFilename);
     }
 
+    //Initialize extra parameters for labwork 6
+    int option = atoi(argv[3]);
+
     printf("Starting labwork %d\n", lwNum);
     Timer timer;
     timer.start();
@@ -87,29 +90,47 @@ int main(int argc, char **argv)
         printf("GPU with shared memory is faster than GPU without shared memory: %.2f times\n", timeGPUNonShare / timeGPUShare);
         break;
     case 6:
-        float timeBinarize, timeBlend, timeGrayScale;
-        timer.start();
-        labwork.labwork6a_GPU();
-        timeBinarize = timer.getElapsedTimeInMilliSec();
 
-        labwork.saveOutputImage("labwork6a-gpu-out.jpg");
+        float timeBinarize, timeBright, timeBlend;
+        int parama, paramb;
+        float paramc;
 
-        timer.start();
-        labwork.labwork6b_GPU();
-        timeBlend = timer.getElapsedTimeInMilliSec();
+        switch (option)
+        {
+        case 0:
+            parama = atoi(argv[4]);
+            timer.start();
+            labwork.labwork6a_GPU(parama);
+            timeBinarize = timer.getElapsedTimeInMilliSec();
 
-        labwork.saveOutputImage("labwork6b-gpu-out.jpg");
+            labwork.saveOutputImage("labwork6a-gpu-out.jpg");
+            printf("Labwork 6a (Binarization) ellapsed %.1fms\n", lwNum, timeBinarize);
+            break;
+        case 1:
+            paramb = atoi(argv[4]);
+            timer.start();
+            labwork.labwork6b_GPU(paramb);
+            timeBright = timer.getElapsedTimeInMilliSec();
 
-        timer.start();
-        labwork.labwork6c_GPU();
-        timeGrayScale = timer.getElapsedTimeInMilliSec();
+            printf("Labwork 6b (Blending) ellapsed %.1fms\n", lwNum, timeBright);
+            labwork.saveOutputImage("labwork6b-gpu-out.jpg");
+            break;
+        case 2:
+            paramc = atof(argv[4]);
+            std::string inputFilename1;
+            JpegInfo *inputImage1;
 
-        labwork.saveOutputImage("labwork6c-gpu-out.jpg");
+            inputFilename1 = std::string(argv[5]);
+            inputImage1 = labwork.loadImage(inputFilename1);
 
-        printf("Labwork 6a (Binarization) ellapsed %.1fms\n", lwNum, timeBinarize);
-        printf("Labwork 6b (Blending) ellapsed %.1fms\n", lwNum, timeBlend);
-        printf("Labwork 6c (GrayScaling) ellapsed %.1fms\n", lwNum, timeGrayScale);
+            timer.start();
+            labwork.labwork6c_GPU(paramc, inputImage1);
+            timeBlend = timer.getElapsedTimeInMilliSec();
 
+            printf("Labwork 6c (GrayScaling) ellapsed %.1fms\n", lwNum, timeBlend);
+            labwork.saveOutputImage("labwork6c-gpu-out.jpg");
+            break;
+        }
         break;
     case 7:
         labwork.labwork7_GPU();
@@ -143,6 +164,11 @@ void Labwork::loadInputImage(std::string inputFileName)
 void Labwork::saveOutputImage(std::string outputFileName)
 {
     jpegLoader.save(outputFileName, outputImage, inputImage->width, inputImage->height, 90);
+}
+
+JpegInfo *Labwork::loadImage(std::string fileName)
+{
+    return jpegLoader.load(fileName);
 }
 
 void Labwork::labwork1_CPU()
@@ -536,9 +562,9 @@ __global__ void binarization(uchar3 *input, uchar3 *output, int width, int heigh
     output[tid].z = output[tid].y = output[tid].x = binary;
 }
 
-void Labwork::labwork6a_GPU()
+void Labwork::labwork6a_GPU(int thres)
 {
-    int thres = 128;
+    // int thres = 128;
 
     // Calculate number of pixels
     int pixelCount = inputImage->width * inputImage->height;
@@ -590,9 +616,9 @@ __global__ void brightnessControl(uchar3 *input, uchar3 *output, int width, int 
     output[tid].z = blue;
 }
 
-void Labwork::labwork6b_GPU()
+void Labwork::labwork6b_GPU(int brightness)
 {
-    int brightness = 100;
+    // int brightness = 100;
 
     // Calculate number of pixels
     int pixelCount = inputImage->width * inputImage->height;
@@ -644,9 +670,8 @@ __global__ void blendImages(uchar3 *input, uchar3 *input1, uchar3 *output, int w
     output[tid].z = blue;
 }
 
-void Labwork::labwork6c_GPU()
+void Labwork::labwork6c_GPU(float blendRatio, JpegInfo *inputImage1)
 {
-    float blendRatio = 100;
 
     // Calculate number of pixels
     int pixelCount = inputImage->width * inputImage->height;
@@ -667,6 +692,7 @@ void Labwork::labwork6c_GPU()
 
     // Copy InputImage from CPU to GPU
     cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+    cudaMemcpy(devInput1, inputImage1->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
 
     blendImages<<<gridSize, blockSize>>>(devInput, devInput1, devOutput, inputImage->width, inputImage->height, blendRatio);
 
