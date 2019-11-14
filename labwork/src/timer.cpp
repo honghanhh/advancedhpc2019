@@ -1,12 +1,14 @@
 #include <include/timer.h>
 #include <stdlib.h>
 
-void Timer::start() {
+void Timer::start()
+{
     startTime.tv_sec = startTime.tv_usec = 0;
     gettimeofday(&startTime, NULL);
 }
 
-double Timer::getElapsedTimeInMilliSec() {
+double Timer::getElapsedTimeInMilliSec()
+{
     timeval endCount;
     gettimeofday(&endCount, NULL);
 
