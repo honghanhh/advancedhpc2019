@@ -887,8 +887,175 @@ void Labwork::labwork7_GPU()
     cudaFree(devMin1);
 }
 
+__global__ void rgv2hsv(uchar3 *input, int *H, float *S, float *V, int width, int height)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+    int tid = tidY * width + tidX;
+
+    // Preparation
+
+    // Scaling
+    float R = input[tid].x / 255.0f;
+    float G = input[tid].y / 255.0f;
+    float B = input[tid].z / 255.0f;
+
+    // Find max and min
+    float max_rg = max(R, G);
+    float min_rg = min(R, G);
+    float maxV = max(max_rg, B);
+    float minV = min(min_rg, B);
+    float delta = maxV - minV;
+
+    // Conversion
+    V[tid] = maxV;
+
+    if (delta == 0.0f)
+    {
+        H[tid] = 0;
+        S[tid] = 0.0f; // Saturation when delta = 0
+    }
+    else
+    {
+        // Saturation conversion
+        S[tid] = delta / maxV;
+
+        // Hue conversion
+        if (maxV == R)
+        {
+            H[tid] = 60.0f * fmod((G - B) / delta, 6.0f);
+        }
+        else if (maxV == G)
+        {
+            H[tid] = 60.0f * ((B - R) / delta + 2.0f);
+        }
+        else
+        {
+            H[tid] = 60.0f * ((R - G) / delta + 4.0f);
+        }
+
+        if (H[tid] < 0)
+        {
+            H[tid] = 360 + H[tid];
+        }
+    }
+}
+
+__global__ void hsv2rgb(int *H, float *S, float *V, uchar3 *output, int width, int height)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+    int tid = tidY * width + tidX;
+    
+    float h = H[tid];
+    float s = S[tid];
+    float v = V[tid];
+
+    // Preparation
+    float d = h / 60;
+    float hi = (int)fmodf(d, 6.0);
+    float f = d - hi;
+    float l = v * (1 - s);
+    float m = v * (1 - (f * s));
+    float n = v * (1 - ((1 - f) * s));
+
+    // Conversion
+    float R, G, B;
+    if (h >= 0 and h < 60)
+    {
+        R = v;
+        G = n;
+        B = l;
+    }
+    else if (h >= 60 and h < 120)
+    {
+        R = m;
+        G = v;
+        B = l;
+    }
+    else if (h >= 120 and h < 180)
+    {
+        R = l;
+        G = v;
+        B = n;
+    }
+    else if (h >= 180 and h < 240)
+    {
+        R = l;
+        G = m;
+        B = v;
+    }
+    else if (h >= 240 and h < 300)
+    {
+        R = n;
+        G = l;
+        B = v;
+    }
+    else if (h >= 300 and h < 360)
+    {
+        R = v;
+        G = l;
+        B = m;
+    }
+    else
+    {
+        R = 1;
+        G = 1;
+        B = 1;
+    }
+
+    output[tid].x = R * 255;
+    output[tid].y = G * 255;
+    output[tid].z = B * 255;
+}
+
 void Labwork::labwork8_GPU()
 {
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+
+    dim3 blockSize = dim3(16, 16);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    // Define Hue, Saturation, Value
+    int *devH;
+    float *devS, *devV;
+    // Allocate CUDA memory
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devH, pixelCount * sizeof(int));
+    cudaMalloc(&devS, pixelCount * sizeof(float));
+    cudaMalloc(&devV, pixelCount * sizeof(float));
+
+    // Allocate memory for the output on the host
+    outputImage = (char *)malloc(pixelCount * sizeof(uchar3));
+
+    // Copy InputImage from CPU to GPU
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    // Processing
+    rgv2hsv<<<gridSize, blockSize>>>(devInput, devH, devS, devV, inputImage->width, inputImage->height);
+    hsv2rgb<<<gridSize, blockSize>>>(devH, devS, devV, devOutput, inputImage->width, inputImage->height);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    //Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
+    cudaFree(devH);
+    cudaFree(devS);
+    cudaFree(devV);
 }
 
 void Labwork::labwork9_GPU()
