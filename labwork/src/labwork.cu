@@ -138,16 +138,19 @@ int main(int argc, char **argv)
         labwork.saveOutputImage("labwork7-gpu-out.jpg");
         break;
     case 8:
+        timer.start();
         labwork.labwork8_GPU();
         printf("[ALGO ONLY] labwork %d ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         labwork.saveOutputImage("labwork8-gpu-out.jpg");
         break;
     case 9:
-        labwork.labwork9_GPU();
+        timer.start();
+        labwork.labwork8_GPU();
         printf("[ALGO ONLY] labwork %d ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         labwork.saveOutputImage("labwork9-gpu-out.jpg");
         break;
     case 10:
+        timer.start();
         labwork.labwork10_GPU();
         printf("[ALGO ONLY] labwork %d ellapsed %.1fms\n", lwNum, timer.getElapsedTimeInMilliSec());
         labwork.saveOutputImage("labwork10-gpu-out.jpg");
@@ -806,9 +809,7 @@ __global__ void grayscaleStretch(unsigned char *input, char *output, unsigned ch
 
     unsigned char greyStretched = ((float)(input[tid] - min[0]) / (max[0] - min[0])) * 255;
 
-    output[tid * 3] = greyStretched;
-    output[tid * 3 + 1] = greyStretched;
-    output[tid * 3 + 2] = greyStretched;
+    output[tid * 3] = output[tid * 3 + 1] = output[tid * 3 + 2] = greyStretched;
 }
 
 void Labwork::labwork7_GPU()
@@ -954,7 +955,7 @@ __global__ void hsv2rgb(int *H, float *S, float *V, uchar3 *output, int width, i
     if (tidY >= height)
         return;
     int tid = tidY * width + tidX;
-    
+
     float h = H[tid];
     float s = S[tid];
     float v = V[tid];
@@ -1058,8 +1059,126 @@ void Labwork::labwork8_GPU()
     cudaFree(devV);
 }
 
+__global__ void histogramGather(uchar3 *input, unsigned int **output, int width, int height)
+{
+    unsigned int histoL[256] = {0};
+    for (int i = 0; i < height; i++)
+    {
+        int j = input[blockIdx.x * height + i].x;
+        histoL[j]++;
+    }
+    for (int i = 0; i < 256; i++)
+    {
+        output[blockIdx.x][i] = histoL[i];
+    }
+}
+
+__global__ void histogramReduction(unsigned int **input, int *output, int width, int height)
+{
+    // Dynamic shared memory size, allocated in host
+    __shared__ unsigned int cache[256];
+
+    // Cache the block content
+    unsigned int localtid = threadIdx.x;
+    cache[localtid] = 0;
+    // unsigned int histo[256] = input;
+    __syncthreads();
+
+    // Reduction in cache
+    for (int i = 0; i < width; i++)
+    {
+        cache[localtid] += input[i][localtid];
+    }
+    __syncthreads();
+
+    // Only first thread writes back
+    if (localtid == 0)
+    {
+        for (int i = 0; i < 256; i++)
+        {
+            output[i] = cache[i];
+        }
+    }
+}
+
+__global__ void cdfCalculation(int *h, int pixelCount)
+{
+    int cdfMin = 0;
+    int cdfCumul = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        if (cdfMin == 0)
+        {
+            cdfMin = h[i];
+        }
+        cdfCumul += h[i];
+        h[i] = round((double)(cdfCumul - cdfMin) / (pixelCount - cdfMin) * 255.0);
+    }
+}
+
+__global__ void equalization(uchar3 *input, int *h, uchar3 *output, int width, int height)
+{
+    int tidx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidx >= width)
+        return;
+    int tidy = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidy >= height)
+        return;
+    int tid = tidx + tidy * width;
+
+    unsigned char g = h[input[tid].x];
+    output[tid].x = output[tid].y = output[tid].z = g;
+}
+
 void Labwork::labwork9_GPU()
 {
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+
+    dim3 blockSize = dim3(32, 32);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    uchar3 *tempOutput;
+    unsigned int *hist2Local[inputImage->width];
+    int *hist2Final;
+    int *hostHisto = (int *)calloc(256, sizeof(int));
+
+    // Allocate CUDA memory
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&tempOutput, pixelCount * sizeof(uchar3));
+    // cudaMalloc(&hist2Local, inputImage->width * 256);
+    cudaMalloc(&hist2Final, 256 * sizeof(int));
+    for (int i = 0; i < inputImage->width; i++)
+    {
+        cudaMalloc(&hist2Local[i], 256 * sizeof(unsigned int));
+    }
+    
+
+    // Allocate memory for the output on the host
+    outputImage = (char *)malloc(pixelCount * sizeof(uchar3));
+
+    // Copy InputImage from CPU to GPU
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    // Processing
+    grayscale2D<<<gridSize, blockSize>>>(devInput, tempOutput, inputImage->width, inputImage->height);
+    histogramGather<<<inputImage->width, 1>>>(tempOutput, hist2Local, inputImage->width, inputImage->height);
+    histogramReduction<<<1, 256>>>(hist2Local, hist2Final, inputImage->width, inputImage->height);
+    cdfCalculation<<<1, 1>>>(hist2Final, pixelCount);
+    equalization<<<gridSize, blockSize>>>(tempOutput, hist2Final, devOutput, inputImage->width, inputImage->height);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    //Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
+    cudaFree(tempOutput);
+    cudaFree(hist2Local);
+    cudaFree(hist2Final);
 }
 
 void Labwork::labwork10_GPU()
