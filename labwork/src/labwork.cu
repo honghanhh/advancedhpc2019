@@ -1081,7 +1081,7 @@ __global__ void histogramReduction(unsigned int **input, int *output, int width,
     // Cache the block content
     unsigned int localtid = threadIdx.x;
     cache[localtid] = 0;
-    // unsigned int histo[256] = input;
+
     __syncthreads();
 
     // Reduction in cache
@@ -1118,13 +1118,13 @@ __global__ void cdfCalculation(int *h, int pixelCount)
 
 __global__ void equalization(uchar3 *input, int *h, uchar3 *output, int width, int height)
 {
-    int tidx = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tidx >= width)
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
         return;
-    int tidy = threadIdx.y + blockIdx.y * blockDim.y;
-    if (tidy >= height)
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
         return;
-    int tid = tidx + tidy * width;
+    int tid = tidX + tidY * width;
 
     unsigned char g = h[input[tid].x];
     output[tid].x = output[tid].y = output[tid].z = g;
@@ -1155,7 +1155,6 @@ void Labwork::labwork9_GPU()
     {
         cudaMalloc(&hist2Local[i], 256 * sizeof(unsigned int));
     }
-    
 
     // Allocate memory for the output on the host
     outputImage = (char *)malloc(pixelCount * sizeof(uchar3));
@@ -1181,6 +1180,118 @@ void Labwork::labwork9_GPU()
     cudaFree(hist2Final);
 }
 
+__global__ void kuwahara(uchar3 *input, uchar3 *output, int width, int height, int winSize)
+{
+    int tidX = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tidX >= width)
+        return;
+    int tidY = threadIdx.y + blockIdx.y * blockDim.y;
+    if (tidY >= height)
+        return;
+    int tid = tidY * width + tidX;
+
+    double window[4] = {0.0};
+    double SD[4] = {0.0};
+    int meanRGB[4][3] = {0};
+    int pxCount[4] = {0};
+    int winPos;
+
+    for (int x = 1 - winSize; x <= winSize - 1; x++)
+    {
+        for (int y = 1 - winSize; y <= winSize - 1; y++)
+        {
+            int rows = tidX + x;
+            int columns = tidY + y;
+            if (rows < 0 || rows >= width || columns < 0 || columns >= height)
+                continue;
+            int positionOut = rows + columns * width;
+
+            int red = input[positionOut].x;
+            int green = input[positionOut].y;
+            int blue = input[positionOut].z;
+
+            if (x >= 0 && y <= 0)
+            {
+                winPos = 3; // bottom right
+            }
+
+            if (x <= 0 && y <= 0)
+            {
+                winPos = 2; // bottom left
+            }
+
+            if (x >= 0 && y >= 0)
+            {
+                winPos = 1; //top right
+            }
+
+            if (x <= 0 && y >= 0)
+            {
+                winPos = 0; // top left
+            }
+            meanRGB[winPos][0] += red;
+            meanRGB[winPos][1] += green;
+            meanRGB[winPos][2] += blue;
+
+            window[winPos] += max(red, max(green, blue));
+            pxCount[winPos]++;
+
+            SD[winPos] += pow((max(red, max(green, blue)) - window[winPos]), 2.0);
+        }
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        SD[i] = sqrt(SD[i] / (pxCount[i]));
+        window[i] /= pxCount[i];
+        for (int j = 0; j < 3; j++)
+        {
+            meanRGB[i][j] /= pxCount[i];
+        }
+    }
+
+    double minSD = min(SD[0], min(SD[1], min(SD[2], SD[3])));
+    if (minSD == SD[0])
+        tidX = 0;
+    else if (minSD == SD[1])
+        tidX = 1;
+    else if (minSD == SD[2])
+        tidX = 2;
+    else
+        tidX = 3;
+
+    output[tid].x = meanRGB[tidX][0];
+    output[tid].y = meanRGB[tidX][1];
+    output[tid].z = meanRGB[tidX][2];
+}
+
 void Labwork::labwork10_GPU()
 {
+    // Calculate number of pixels
+    int pixelCount = inputImage->width * inputImage->height;
+    int winSize = 32;
+
+    dim3 blockSize = dim3(32, 32);
+    dim3 gridSize = dim3((inputImage->width + blockSize.x - 1) / blockSize.x, (inputImage->height + blockSize.y - 1) / blockSize.y);
+
+    // Allocate CUDA memory
+    uchar3 *devInput;
+    uchar3 *devOutput;
+    cudaMalloc(&devInput, pixelCount * sizeof(uchar3));
+    cudaMalloc(&devOutput, pixelCount * sizeof(uchar3));
+
+    // Allocate memory for the output on the host
+    outputImage = static_cast<char *>(malloc(pixelCount * sizeof(uchar3)));
+
+    // Copy InputImage from CPU (host) to GPU (device)
+    cudaMemcpy(devInput, inputImage->buffer, pixelCount * sizeof(uchar3), cudaMemcpyHostToDevice);
+
+    kuwahara<<<gridSize, blockSize>>>(devInput, devOutput, inputImage->width, inputImage->height, winSize);
+
+    // Copy CUDA Memory from GPU to CPU
+    cudaMemcpy(outputImage, devOutput, pixelCount * sizeof(uchar3), cudaMemcpyDeviceToHost);
+
+    // Cleaning
+    cudaFree(devInput);
+    cudaFree(devOutput);
 }
