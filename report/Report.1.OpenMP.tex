@@ -10,8 +10,7 @@
 \begin{document}
 
 \maketitle
-\begin{enumerate}
-    \item \textbf{How you implement the conversion?}
+\section{How you implement the conversion?}
     \begin{itemize}
         \item I added \textbf{\textit{\#pragma omp parallel}} before the loop to convert from sequential CPU to parallel using OpenMP:
     \begin{verbatim}
@@ -28,30 +27,37 @@
         }
     \end{verbatim}
     \end{itemize}
-    \item \textbf{What’s the speedup?}
+\section{What’s the speedup?}
     \begin{itemize}
         \item Using OpenMP parallel computed one third times compared to CPU.
-        \item [] Labwork 1 CPU ellapsed 374.1ms
-        \item [] Labwork 1 using OpenMP ellapsed 108.9ms
+        \begin{verbatim}
+        Labwork 1 CPU ellapsed 374.1ms
+        Labwork 1 using OpenMP ellapsed 108.9ms
+        \end{verbatim}
     \end{itemize}
-    \item \textbf{Try experimenting with different OpenMP parameters?}
+\section{Try experimenting with different OpenMP parameters?}
     \begin{itemize}
         \item atomic:
-        \item [] Labwork 1 CPU ellapsed 444.9ms
-        \item [] Labwork 1 using OpenMP  ellapsed 107.1ms
+        \begin{verbatim}
+        Labwork 1 CPU ellapsed 444.9ms
+        Labwork 1 using OpenMP  ellapsed 107.1ms
+        \end{verbatim}
         \item critical
-        \item [] Labwork 1 CPU ellapsed 372.0ms
-        \item [] Labwork 1 using OpenMP 126.2ms
+        \begin{verbatim}
+        Labwork 1 CPU ellapsed 372.0ms
+        Labwork 1 using OpenMP 126.2ms
+        \end{verbatim}
         \item master
-        \item [] Labwork 1 CPU ellapsed 268.5ms
-        \item [] Labwork 1 using OpenMP ellapsed 267.3ms
+        \begin{verbatim}
+        Labwork 1 CPU ellapsed 268.5ms
+        Labwork 1 using OpenMP ellapsed 267.3ms    
+        \end{verbatim}
         \item single
-        \item []  Labwork 1 CPU ellapsed 429.3ms
-        \item [] Labwork 1 using OpenMP ellapsed 109.4ms
-
-
-
+        \begin{verbatim}
+        Labwork 1 CPU ellapsed 429.3ms
+        Labwork 1 using OpenMP ellapsed 109.4ms
+        \end{verbatim}
     \end{itemize}
-\end{enumerate}
+
 \end{document}
 

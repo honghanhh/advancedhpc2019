@@ -10,8 +10,7 @@
 \begin{document}
 
 \maketitle
-\begin{enumerate}
-    \item \textbf{Explain how you implement the labwork?}
+\section{Explain how you implement the labwork?}
     \begin{verbatim}
     __global__ void grayscale(uchar3 *input, uchar3 *output) {
         // this will execute in a device core
@@ -45,12 +44,13 @@
     }
     \end{verbatim}
     
-    \item \textbf{What’s the speedup?}\\
-    \item [] Labwork 3 ellapsed 13.0ms (surprisingly :v)
+\section{What’s the speedup?}
+    \begin{verbatim}
+        Labwork 3 ellapsed 13.0ms
+    \end{verbatim}
     
-    \item \textbf{Try experimenting with different block size values}
-    
-    \begin{table}[]
+\section{Try experimenting with different block size values}
+    \begin{table}[h]
     \centering
     \begin{tabular}{|l|l|l|l|}
     \hline
@@ -59,7 +59,5 @@
     \end{tabular}
     
     \end{table}
-
-\end{enumerate}
 \end{document}
 

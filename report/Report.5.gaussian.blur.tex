@@ -10,48 +10,44 @@
 \begin{document}
 
 \maketitle
-\begin{enumerate}
-    \item \textbf{Explain how you implement the Gaussian Blur filter?}\\
+\section{Explain how you implement the Gaussian Blur filter?}\\
+\noindent
+For Gaussian Blur Convolution, I tried to implement with CPU, GPU without shared memory, and GPU with shared memory.
+Without shared memory, each thread stores its own kernel array. Meanwhile, when using shared memory, all threads in a block using one shared kernel array.\\
+\noindent
+The results for block size of (32,32):
+\begin{verbatim}
+Labwork 5 CPU ellapsed 169.1ms
+Labwork 5 GPU with shared memory ellapsed 6.2ms
+Labwork 5 GPU without shared memory ellapsed 10.1ms
+GPU without shared memory is faster than CPU: 16.78 times
+GPU with shared memory is faster than CPU: 27.49 times
+GPU with shared memory is faster than GPU without shared memory: 1.64 times
+\end{verbatim}
     
-    For Gaussian Blur Convolution, I tried to implement with CPU, GPU without shared memory, and GPU with shared memory.
-    Without shared memory, each thread stores its own kernel array. Meanwhile, when using shared memory, all threads in a block using one shared kernel array.\\
-    
-    The results for block size of (32,32):
-    
-    \begin{verbatim}
-    Labwork 5 CPU ellapsed 169.1ms
-    Labwork 5 GPU with shared memory ellapsed 6.2ms
-    Labwork 5 GPU without shared memory ellapsed 10.1ms
-    GPU without shared memory is faster than CPU: 16.78 times
-    GPU with shared memory is faster than CPU: 27.49 times
-    GPU with shared memory is faster than GPU without shared memory: 1.64 times
-    \end{verbatim}
-    
-    \item \textbf{Try experimenting with different 2D block size values?}\\
-    \begin{itemize}
-    
-    \item Block size of (64 , 64)
-    \begin{verbatim}
-    Labwork 5 CPU ellapsed 156.9ms
-    Labwork 5 GPU with shared memory ellapsed 14.2ms
-    Labwork 5 GPU without shared memory ellapsed 13.1ms
-    GPU without shared memory is faster than CPU: 11.93 times
-    GPU with shared memory is faster than CPU: 11.05 times
-    GPU with shared memory is faster than GPU without shared memory: 0.93 times            
-    \end{verbatim}
-    
-    \item Block size of (128 , 128)
-    \begin{verbatim}
-    Labwork 5 CPU ellapsed 159.9ms
-    Labwork 5 GPU with shared memory ellapsed 9.9ms
-    Labwork 5 GPU without shared memory ellapsed 13.4ms
-    GPU without shared memory is faster than CPU: 11.96 times
-    GPU with shared memory is faster than CPU: 16.13 times
-    GPU with shared memory is faster than GPU without shared memory: 1.35 times
-    \end{verbatim}
-    
-    \end{itemize}
+\section{Try experimenting with different 2D block size values?}\\
 
-\end{enumerate}
+\begin{itemize}
+\item Block size of (64 , 64)
+\begin{verbatim}
+Labwork 5 CPU ellapsed 156.9ms
+Labwork 5 GPU with shared memory ellapsed 14.2ms
+Labwork 5 GPU without shared memory ellapsed 13.1ms
+GPU without shared memory is faster than CPU: 11.93 times
+GPU with shared memory is faster than CPU: 11.05 times
+GPU with shared memory is faster than GPU without shared memory: 0.93 times            
+\end{verbatim}
+
+\item Block size of (128 , 128)
+\begin{verbatim}
+Labwork 5 CPU ellapsed 159.9ms
+Labwork 5 GPU with shared memory ellapsed 9.9ms
+Labwork 5 GPU without shared memory ellapsed 13.4ms
+GPU without shared memory is faster than CPU: 11.96 times
+GPU with shared memory is faster than CPU: 16.13 times
+GPU with shared memory is faster than GPU without shared memory: 1.35 times
+\end{verbatim}
+\end{itemize}
+
 \end{document}
 

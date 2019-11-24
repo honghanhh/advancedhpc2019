@@ -111,7 +111,7 @@ int main(int argc, char **argv)
             labwork.labwork6b_GPU(paramb);
             timeBright = timer.getElapsedTimeInMilliSec();
 
-            printf("Labwork 6b (Blending) ellapsed %.1fms\n", lwNum, timeBright);
+            printf("Labwork 6b (Brightness) ellapsed %.1fms\n", lwNum, timeBright);
             labwork.saveOutputImage("labwork6b-gpu-out.jpg");
             break;
         case 2:
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
             labwork.labwork6c_GPU(paramc, inputImage1);
             timeBlend = timer.getElapsedTimeInMilliSec();
 
-            printf("Labwork 6c (GrayScaling) ellapsed %.1fms\n", lwNum, timeBlend);
+            printf("Labwork 6c (Blending) ellapsed %.1fms\n", lwNum, timeBlend);
             labwork.saveOutputImage("labwork6c-gpu-out.jpg");
             break;
         }
